@@ -15,9 +15,9 @@ import logging
 from dataclasses import dataclass
 
 # Import existing sensor classes
-from camera import Camera
-from ultrasonic import Ultrasonic
-from control import Control
+#from camera import Camera
+#from ultrasonic import Ultrasonic
+#from control import Control
 
 # Configure logging
 logging.basicConfig(
@@ -80,54 +80,29 @@ class RobotServer:
         finally:
             self.cleanup()
 
+    def map(self, value, fromLow, fromHigh, toLow, toHigh):
+        return (toHigh - toLow) * (value - fromLow) / (fromHigh - fromLow) + toLow
+
     def execute_action(self, action: int):
         """Execute robot action using Control class"""
         # 0 --> forward
         # 1 --> turn left
         # 2 --> turn right
 
-        if action == 0:
-            self.move_point = [325, 535]  # Adelante
-            self.action_flag = 1
-            self.gait_flag = 1
-
-        elif action == 1:
-            self.move_point = [275, 535]  # Izquierda
-            self.action_flag = 1
-            self.gait_flag = 2
-
-        elif action == 2:
-            self.move_point = [375, 535]  # Derecha
-            self.action_flag = 1
-            self.gait_flag = 2
-
         try:
-            x = self.map((self.move_point[0]-325), 0, 100, 0, 35)
-            y = self.map((635 - self.move_point[1]), 0, 100, 0, 35)
-            if self.action_flag == 1:
-                angle = 0
+            if action == 0:
+                command = ['CMD_MOVE', '1', '0', '35', '10', '0']
+            elif action == 1:
+                command = ['CMD_MOVE', '2', '-35', '0', '10', '10']
+            elif action == 2:
+                command = ['CMD_MOVE', '2', '35', '0', '10', '10']
             else:
-                if x != 0 or y != 0:
-                    angle = math.degrees(math.atan2(x, y))
-                    if angle < -90 and angle >= -180:
-                        angle = angle + 360
-                    if angle >= -90 and angle <= 90:
-                        angle = self.map(angle, -90, 90, -10, 10)
-                    else:
-                        angle = self.map(angle, 270, 90, 10, -10)
-                else:
-                    angle = 0
+                command = None
 
-            speed = 8
-
-            command = ['CMD_MOVE', str(self.gait_flag), str(round(x)), str(round(y)), str(speed), str(round(angle))]
-
-            self.control.run_gait(command)
-
+            if command is not None:
+                self.control.run_gait(command)
         except Exception as e:
             print(e)
-
-        pass
 
     async def handle_client(self, websocket, path):
         """Handle WebSocket client connection"""
