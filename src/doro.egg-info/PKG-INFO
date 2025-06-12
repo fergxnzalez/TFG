@@ -1,0 +1,274 @@
+Metadata-Version: 2.4
+Name: doro
+Version: 0.1.0
+Summary: Q-Learning Agent for Anomaly Detection and Investigation in Robotics
+Keywords: machine-learning,robotics,q-learning,anomaly-detection,computer-vision
+Classifier: Development Status :: 3 - Alpha
+Classifier: Intended Audience :: Developers
+Classifier: Intended Audience :: Science/Research
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.8
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Topic :: Scientific/Engineering :: Artificial Intelligence
+Classifier: Topic :: Software Development :: Libraries :: Python Modules
+Requires-Python: >=3.11
+Description-Content-Type: text/markdown
+Requires-Dist: torch>=1.9.0
+Requires-Dist: torchvision>=0.10.0
+Requires-Dist: opencv-python>=4.5.0
+Requires-Dist: numpy>=1.21.0
+Requires-Dist: matplotlib>=3.4.0
+Requires-Dist: websockets>=10.0
+Provides-Extra: dev
+Requires-Dist: pytest>=6.0; extra == "dev"
+
+# DORO: Deep Q-Learning Robotic Operator for Anomaly Detection
+
+DORO (Deep Q-Learning Robotic Operator) is a distributed reinforcement learning system that enables autonomous robots to detect and investigate anomalies using computer vision and deep Q-learning. The system features a client-server architecture where robots collect sensor data and powerful computers handle the AI processing.
+
+## 🏗️ Project Architecture
+
+```mermaid
+graph TB
+    subgraph "DORO System Architecture"
+        subgraph "Robot Hardware"
+            RPI[Raspberry Pi 3]
+            CAM[Camera Module]
+            USS[Ultrasonic Sensor]
+            MOT[Motors & Actuators]
+        end
+        
+        subgraph "Server Component"
+            RS[Robot Server<br/>src/doro/server/]
+            RS --> RPI
+            RPI --> CAM
+            RPI --> USS
+            RPI --> MOT
+        end
+        
+        subgraph "Client Component"
+            RC[Robot Client<br/>src/doro/client/]
+            AG[Q-Learning Agent<br/>src/doro/agent/]
+            ENV[Environment Interface<br/>src/doro/environment/]
+        end
+        
+        subgraph "AI Models"
+            DQN[Deep Q-Network]
+            LSTM[LSTM Feature Extractor]
+            RN50[ResNet50 Anomaly Detector]
+        end
+        
+        subgraph "Training & Utils"
+            TRN[Training Pipeline<br/>src/doro/utils/]
+            DEMO[Demo System<br/>demo.py]
+        end
+        
+        RS <-->|TCP Socket<br/>Sensor Data| RC
+        RC --> AG
+        AG --> ENV
+        AG --> DQN
+        AG --> LSTM
+        AG --> RN50
+        ENV --> RC
+        TRN --> AG
+        DEMO --> AG
+    end
+```
+
+## 📁 Project Structure
+
+```
+tfg-fer/
+├── src/doro/                    # Main DORO package
+│   ├── agent/                   # Q-Learning agent implementation
+│   │   ├── __init__.py
+│   │   └── q_learning_agent.py  # Deep Q-Network and anomaly detection
+│   ├── client/                  # Client-side robot communication
+│   │   ├── __init__.py
+│   │   └── robot_client.py      # Network client for robot control
+│   ├── server/                  # Server-side robot hardware interface
+│   │   ├── __init__.py
+│   │   └── robot_server.py      # Robot hardware server
+│   ├── environment/             # Environment abstractions
+│   │   ├── __init__.py
+│   │   ├── base.py             # Base environment interface
+│   │   ├── simulated.py        # Simulated environment for training
+│   │   └── real.py             # Real robot environment
+│   ├── utils/                   # Training and utility functions
+│   │   ├── __init__.py
+│   │   └── train_agent.py      # Training pipeline and utilities
+│   └── __init__.py
+├── docs/                        # Documentation
+│   ├── CLIENT_SERVER_SETUP.md   # Distributed setup guide
+│   └── ULTRASONIC_INTEGRATION.md # Hardware integration guide
+├── tests/                       # Unit tests
+├── scripts/                     # Deployment and setup scripts
+├── demo.py                      # Interactive demo system
+├── setup_raspberry_pi.sh        # Raspberry Pi setup script
+├── pyproject.toml              # Project configuration
+├── uv.lock                     # Dependency lock file
+└── README.md                   # This file
+```
+
+## ✨ Features
+
+- **Distributed Architecture**: Client-server design separating AI processing from robot hardware
+- **Deep Q-Network (DQN)** with experience replay and target networks
+- **LSTM-based temporal feature extraction** for processing sequences of 5 frames
+- **Anomaly detection** using embedding comparison between LSTM and ResNet50 models
+- **6-action robot control**: forward, backward, left, right, turn left, turn right
+- **Real-time sensor integration**: Camera and ultrasonic distance sensing
+- **Comprehensive training framework** with progress logging and visualization
+- **Interactive demo system** for manual control and testing
+- **Modular environment system** supporting both simulated and real robot environments
+
+## 🚀 Quick Start
+
+### 1. Installation
+
+```bash
+git clone <repository-url>
+cd tfg-fer
+uv sync
+```
+
+### 2. Training (Simulated Environment)
+
+```bash
+# Basic training with default parameters
+python -m doro.utils.train_agent
+
+# Advanced training with custom parameters
+python -m doro.utils.train_agent --episodes 2000 --render --device cuda
+```
+
+### 3. Real Robot Setup
+
+#### Raspberry Pi (Robot Server)
+```bash
+# Automated setup
+./setup_raspberry_pi.sh
+# Manual start
+python -m doro.server.robot_server
+```
+
+#### Computer (Q-Learning Client)
+```bash
+# Connect to robot at IP 192.168.1.100
+python -m doro.client.robot_client --robot-host 192.168.1.100
+```
+
+### 4. Interactive Demo
+
+```bash
+# Run automated demo
+python demo.py --model models/final/ --episodes 10
+
+# Interactive control mode
+python demo.py --interactive --model models/final/
+```
+
+## 🧠 Architecture Details
+
+### Deep Q-Network Architecture
+```
+Input (2049) → FC(512) → Dropout → FC(512) → Dropout → FC(256) → FC(6)
+     ^
+     LSTM(2048) + Ultrasonic(1)
+```
+
+### LSTM Feature Extractor
+```
+Input (5×2048) → LSTM(512×2) → FC(2048)
+```
+
+### Anomaly Detection Pipeline
+1. **Frame Capture**: 640×480 RGB frames from robot camera
+2. **Feature Extraction**: LSTM processes sequence of 5 frames → 2048D embedding
+3. **Baseline Comparison**: ResNet50 generates reference embeddings
+4. **Anomaly Score**: Cosine similarity between LSTM and ResNet50 embeddings
+5. **Threshold Decision**: Anomaly detected if similarity < 0.5
+
+### Reward System
+
+The agent receives structured rewards to encourage safe anomaly investigation:
+
+- **🛡️ Collision Avoidance**: -2.0 for risky forward movement, +0.5 for safe backing
+- **🔍 Anomaly Investigation**: +2.0 for approaching detected anomalies safely  
+- **🧠 Smart Navigation**: +1.0 for strategic side movements around obstacles
+- **📏 Distance Awareness**: +0.05 bonus for maintaining >50cm clearance
+- **⚡ Exploration**: +0.1 for forward/lateral movements
+- **⏱️ Efficiency**: -0.01 per step to encourage task completion
+
+## ⚙️ Configuration
+
+### Hyperparameters
+```python
+learning_rate = 1e-4      # Adam optimizer learning rate
+gamma = 0.99              # Reward discount factor
+epsilon = 1.0             # Initial exploration probability
+epsilon_min = 0.01        # Minimum exploration probability
+epsilon_decay = 0.995     # Exploration decay rate
+memory_size = 10000       # Experience replay buffer size
+batch_size = 32           # Training batch size
+target_update_freq = 100  # Target network update frequency
+```
+
+### Environment Parameters
+```python
+width = 640               # Camera frame width
+height = 480              # Camera frame height
+max_steps = 500           # Maximum steps per episode
+anomaly_probability = 0.1 # Probability of anomalies in simulation
+ultrasonic_threshold = 30 # Collision avoidance distance (cm)
+```
+
+## 🔧 Hardware Integration
+
+### Supported Hardware
+- **Single Board Computer**: Raspberry Pi 4B/3B+
+- **Camera**: RPi Camera Module or USB camera
+- **Distance Sensor**: HC-SR04 ultrasonic sensor
+- **Motors**: Compatible with L298N motor driver
+- **Power**: 5V/3A power supply recommended
+
+### GPIO Configuration
+```python
+# Raspberry Pi GPIO pins
+ULTRASONIC_TRIGGER = 18   # GPIO 18 (Pin 12)
+ULTRASONIC_ECHO = 24      # GPIO 24 (Pin 18)
+MOTOR_LEFT_FWD = 2        # GPIO 2 (Pin 3)
+MOTOR_LEFT_BWD = 3        # GPIO 3 (Pin 5)
+MOTOR_RIGHT_FWD = 4       # GPIO 4 (Pin 7)
+MOTOR_RIGHT_BWD = 14      # GPIO 14 (Pin 8)
+```
+
+## 📊 Performance Metrics
+
+The training system tracks comprehensive metrics:
+
+- **Episode Rewards**: Cumulative reward per episode
+- **Anomaly Detection Rate**: Percentage of anomalies successfully detected
+- **Collision Rate**: Safety metric tracking obstacle avoidance
+- **Exploration Efficiency**: Coverage of environment space
+- **Learning Convergence**: Q-value stabilization over time
+
+## 🔬 Research Applications
+
+DORO is designed for research in:
+
+- **Autonomous Navigation**: Safe robot movement in unknown environments
+- **Anomaly Detection**: Computer vision-based anomaly identification
+- **Reinforcement Learning**: Deep Q-learning in real-world robotics
+- **Distributed AI**: Client-server AI architectures for resource-constrained robots
+- **Human-Robot Interaction**: Safe autonomous behavior in human environments
+
+## 📖 Documentation
+
+Detailed documentation is available in the `docs/` directory:
+
+- [Client-Server Setup Guide](docs/CLIENT_SERVER_SETUP.md) - Complete setup instructions for distributed deployment
+- [Ultrasonic Integration Guide](docs/ULTRASONIC_INTEGRATION.md) - Hardware sensor integration details
